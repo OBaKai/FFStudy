@@ -22,6 +22,17 @@ Java_com_llk_ff_FFPlayer_getAvCodecVersion(
     return env->NewStringUTF(av_version_info());
 }
 
+/**
+ * 全过程
+ * 1、解封装 拿到音视频上下文
+ * 2、遍历流 拿到对应的音频流、视频流
+ * 3、解码器上下文
+ * 4、获取到解码器
+ * 5、从流中读取packet
+ * 6、packet转换成frame
+ * 7、统一转换成可显示的显示格式
+ * 8、输出到对应的响应设备
+ */
 extern "C" JNIEXPORT void JNICALL
 Java_com_llk_ff_FFPlayer_playFromNative(
         JNIEnv *env,
@@ -48,16 +59,26 @@ Java_com_llk_ff_FFPlayer_playFromNative(
         return;
     }
 
-    //====== 获取视频流参数信息 ======
+    //====== 获取 视频流 参数信息 ======
     AVCodecParameters *video_parm = NULL;
-    int vidio_stream_idx=-1;
+    int vedio_stream_idx=-1;
+
+    //====== 获取 音频流 参数信息 ======
+
 
     avformat_find_stream_info(format_ctx, NULL);
     for (int i = 0; i < format_ctx->nb_streams; ++i) {
-        if (format_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO){
-            video_parm = format_ctx->streams[i]->codecpar;
-            vidio_stream_idx= i;
-            break;
+        int type = format_ctx->streams[i]->codecpar->codec_type;
+        switch (type){
+            case AVMEDIA_TYPE_VIDEO:
+                video_parm = format_ctx->streams[i]->codecpar;
+                vedio_stream_idx = i;
+                break;
+            case AVMEDIA_TYPE_AUDIO:
+
+                break;
+            default:
+                break;
         }
     }
 
@@ -125,7 +146,7 @@ Java_com_llk_ff_FFPlayer_playFromNative(
         sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height,
                 dst_data, dst_linesize);
 
-        if (video_packet->stream_index == vidio_stream_idx) {
+        if (video_packet->stream_index == vedio_stream_idx) {
             //非零   正在解码
             if (ret==0) {
                 //渲染
